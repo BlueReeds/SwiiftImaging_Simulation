@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Modèle télé-échographie Swiift</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout : bandeau de résultat collant, puis deux colonnes — hypothèses à gauche, lecture économique à droite. */
+:root{
+  --bg:#F2F5F4; --surface:#FFFFFF; --ink:#10262A; --muted:#566B6E; --line:#D3DDDC;
+  --accent:#0A6C74; --accent-soft:#DCECEC; --pos:#1B7548; --neg:#B23A2E; --warn:#99590A; --warn-soft:#F6EBD6;
+  --display:"Schibsted Grotesk","IBM Plex Sans",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1719; --surface:#152326; --ink:#E4EEED; --muted:#93A7A8; --line:#2A3B3E;
+  --accent:#5CC4CC; --accent-soft:#18363A; --pos:#5FCB94; --neg:#F0837A; --warn:#E3A64B; --warn-soft:#33290F; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0D1719; --surface:#152326; --ink:#E4EEED; --muted:#93A7A8; --line:#2A3B3E;
+  --accent:#5CC4CC; --accent-soft:#18363A; --pos:#5FCB94; --neg:#F0837A; --warn:#E3A64B; --warn-soft:#33290F; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 56px;display:flex;flex-direction:column;gap:22px}
+h1{font-family:var(--display);font-size:clamp(1.5rem,3.4vw,2.1rem);line-height:1.15;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-family:var(--display);font-size:1.05rem;margin:0}
+.lead{color:var(--muted);max-width:68ch;margin:6px 0 0}
+.excl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem;color:var(--muted)}
+.excl span.x{border:1px dashed var(--line);border-radius:3px;padding:1px 7px;text-decoration:line-through}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* sélecteurs */
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:inherit;font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:8px 13px;cursor:pointer;text-align:left}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.seg button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg.small button{padding:5px 10px;font-size:.88rem}
+
+/* bandeau */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);color:var(--bg);border-radius:6px;padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px 30px;align-items:baseline}
+.bar .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;opacity:.7;display:block}
+.bar .v{font-family:var(--mono);font-size:1.02rem;font-variant-numeric:tabular-nums}
+.bar .big .v{font-size:1.45rem;font-weight:500}
+.pill{display:inline-block;font-family:var(--body);font-size:.75rem;font-weight:600;border-radius:99px;padding:2px 10px;margin-left:8px;vertical-align:middle;background:var(--bg)}
+.pill.ok{color:var(--pos)} .pill.ko{color:var(--neg)}
+
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:22px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+details.panel>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::after{content:"+";font-family:var(--mono);color:var(--muted)}
+details.panel[open]>summary::after{content:"−"}
+.hint{font-size:.83rem;color:var(--muted);margin:0}
+
+.fields{display:flex;flex-direction:column;gap:8px}
+.field[hidden]{display:none}
+.field{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.field label{flex:1;min-width:0;font-size:.9rem}
+.inp{display:flex;align-items:center;gap:6px;flex:none}
+.inp input{width:88px;font-family:var(--mono);font-size:.9rem;text-align:right;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+.inp .u{width:46px;font-size:.78rem;color:var(--muted)}
+select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);max-width:100%}
+
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th{font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:right;padding:4px 5px;vertical-align:bottom}
+td:first-child{min-width:130px}
+th:first-child,td:first-child{text-align:left;padding-left:0}
+td{padding:4px 6px;text-align:right;border-top:1px solid var(--line)}
+td input[type=number]{width:68px;font-family:var(--mono);font-size:.85rem;text-align:right;padding:4px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+td input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent)}
+
+/* résultats */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 18px}
+.kpi .v{font-family:var(--mono);font-size:1.2rem;font-variant-numeric:tabular-nums;display:block}
+.kpi .s{font-size:.78rem;color:var(--muted)}
+.pl{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(40px,1fr) auto;gap:6px 12px;align-items:center;font-size:.9rem}
+.pl .t{height:10px;border-radius:2px;min-width:2px}
+.pl .t.r{background:var(--accent)} .pl .t.c{background:var(--muted);opacity:.55}
+.pl .sep{grid-column:1/-1;border-top:1px solid var(--line);margin-top:4px}
+.pl .tot{font-weight:600}
+.pos{color:var(--pos)} .neg{color:var(--neg)}
+.cmp{display:grid;grid-template-columns:minmax(0,1.4fr) auto auto;gap:6px 18px;font-size:.9rem;align-items:baseline}
+.cmp .h{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;text-align:right}
+.cmp .n{text-align:right}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:4px;padding:8px 11px;font-size:.85rem}
+ul.plain{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:.9rem}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+svg{display:block;width:100%;height:auto}
+footer{font-size:.8rem;color:var(--muted);max-width:80ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Modèle de fonctionnement et rentabilité de la télé-échographie robotisée</h1>
+    <p class="lead">Choisissez un type d'acteur, ajustez l'organisation et les hypothèses de coût. Le résultat annuel, le seuil de rentabilité et la comparaison avec l'échographie classique se recalculent à chaque saisie.</p>
+  </header>
+
+  <div class="seg" id="actors" role="group" aria-label="Type d'acteur"></div>
+
+  <div class="bar" aria-live="polite">
+    <div class="big"><span class="k">Résultat annuel</span><span class="v" id="b-res"></span><span class="pill" id="b-pill"></span></div>
+    <div><span class="k">Examens par an</span><span class="v" id="b-n"></span></div>
+    <div><span class="k">Marge par examen</span><span class="v" id="b-m"></span></div>
+    <div><span class="k">Seuil de rentabilité</span><span class="v" id="b-be"></span></div>
+  </div>
+
+  <div class="cols">
+    <div class="col" id="inputs">
+      <section class="panel">
+        <h2>Rôle dans la chaîne</h2>
+        <div class="seg small" id="roles" role="group" aria-label="Rôle"></div>
+        <p class="hint" id="role-hint"></p>
+        <ul class="plain" id="reading"></ul>
+      </section>
+
+      <details class="panel" open><summary><h2>Activité et plages horaires</h2></summary><div class="fields" data-group="act"></div></details>
+
+      <details class="panel" open><summary><h2>Indications et répartition des rôles</h2></summary>
+        <div class="excl">Hors périmètre : <span class="x">cardiaque</span><span class="x">vasculaire</span><span class="x">obstétrical</span></div>
+        <div class="scroll"><table>
+          <thead><tr><th>Indication</th><th>Part %</th><th>Tarif €</th><th>Lourde induite %</th><th>Manip. seul</th></tr></thead>
+          <tbody id="ind"></tbody>
+        </table></div>
+        <div class="field"><label for="f-nonElig">Examens hors compétence du manipulateur</label>
+          <select id="f-nonElig"><option value="pilot">Le radiologue pilote le bras à distance</option><option value="none">Non proposés</option></select></div>
+        <p class="hint">Coché : le manipulateur réalise l'examen au bras expert, sous la supervision du médecin. Décoché : le médecin réalise lui-même le geste. Côté patient, un personnel accompagnant installe le patient.</p>
+      </details>
+
+      <details class="panel" open><summary><h2>Ressources humaines</h2></summary><div class="fields" data-group="rh"></div></details>
+      <details class="panel" open id="p-rec"><summary><h2>Recettes et coûts évités</h2></summary><div class="fields" data-group="rec"></div>
+        <p class="hint">Vous ne facturez pas l'acte : votre gain vient des coûts évités. Les patients déplacés ou hospitalisés sont ceux de votre activité actuelle ; ils évoluent avec le taux de remplissage dans la courbe.</p>
+        <details class="hint" id="reperes"><summary style="cursor:pointer;color:var(--accent);font-weight:500">Repères pour les coûts unitaires</summary>
+          <ul class="plain" style="margin-top:8px;font-size:.83rem">
+            <li><b>Déplacement</b> : ambulance sur 30 km, environ 130 € l'aller en journée, 225 € de nuit, 450 € l'aller-retour de nuit (forfait 54,65 € + 2,44 € par km, grille 2023). Un transfert par le SMUR coûte bien davantage.</li>
+            <li><b>Nuit d'hospitalisation</b> : environ 1 300 à 1 400 € en médecine en coût complet. L'économie réelle d'une nuit évitée est plutôt de quelques centaines d'euros si le lit n'est pas réutilisé.</li>
+            <li><b>Attente aux urgences</b> : 50 à 80 € par heure, estimation tirée du coût moyen d'un passage (161,50 € vers 2014, sans doute 200 à 250 € aujourd'hui) rapporté à une durée médiane de 3 heures.</li>
+            <li><b>Complications</b> : une nuit sur un brancard est associée, chez les patients âgés, à un jour de séjour de plus et à 24 % d'événements indésirables en plus (étude française, 2023). Un diagnostic retardé d'appendicite est associé à un surcoût de 23 % du séjour (étude américaine, 2024). Chiffres fragiles : laissé à 0 par défaut.</li>
+            <li>Ne comptez pas deux fois le même patient : celui qui attend toute la nuit puis est hospitalisé relève d'une seule ligne.</li>
+          </ul></details></details>
+      <details class="panel" open><summary><h2>Synergie avec l'imagerie lourde</h2></summary><div class="fields" data-group="lou"></div>
+        <p class="hint">Le gain est plafonné par vos créneaux libres. Un plateau déjà plein ne gagne rien : mettez 0.</p></details>
+      <details class="panel"><summary><h2>Équipement et coûts par examen</h2></summary><div class="fields" data-group="eq"></div>
+        <p class="hint">Les amortissements Swiift sont des valeurs d'exemple. Remplacez-les par votre devis.</p></details>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>Organisation obtenue</h2>
+        <div class="kpis" id="kpis"></div>
+        <div id="notes" style="display:flex;flex-direction:column;gap:6px"></div>
+      </section>
+      <section class="panel">
+        <h2>Compte de résultat annuel</h2>
+        <div class="pl" id="pl"></div>
+      </section>
+      <section class="panel">
+        <h2>Résultat selon le taux de remplissage</h2>
+        <svg id="chart" viewBox="0 0 560 250" role="img" aria-label="Résultat annuel en fonction du taux de remplissage"></svg>
+      </section>
+      <section class="panel" id="p-cmp">
+        <h2>Face à l'échographie classique</h2>
+        <p class="hint">Même amplitude horaire, radiologue présent sur place pendant toute la plage, toutes indications assurées.</p>
+        <div class="cmp" id="cmp"></div>
+      </section>
+    </div>
+  </div>
+
+  <footer>Outil d'aide à la réflexion. Toutes les valeurs par défaut sont des hypothèses d'exemple, y compris les tarifs d'actes, les coûts horaires et les prix d'équipement ; seul le tarif de l'échographie abdominale est calé sur la valeur CCAM connue de 54,02 €. Vérifiez chaque paramètre avec vos propres données avant toute décision. Le personnel accompagnant est compté sur toute la plage d'ouverture, le manipulateur et le médecin sur le temps passé par examen. Un équivalent temps plein est compté à 1 600 heures par an.</footer>
+</div>
+
+<script>
+const GROUPS={
+ act:[['nSites','Sites patients équipés','sites'],['hJour','Journée en semaine','h/sem'],['hSoir','Soirs en semaine','h/sem'],['hWE','Week-end et jours fériés','h/sem'],['duree','Durée d\'un créneau','min'],['fill','Taux de remplissage','%'],['weeks','Semaines d\'activité','sem/an'],['billable','Part des actes facturés par le bras expert','%','exp int']],
+ rh:[['accRate','Personnel accompagnant, coût horaire chargé','€/h','site int'],['manipRate','Manipulateur, coût horaire chargé','€/h','exp int'],['radRate','Médecin radiologue, coût horaire ou coût d\'opportunité','€/h','exp int'],['maj','Majoration soir et week-end','%'],['tSup','Temps radiologue quand le manipulateur réalise l\'examen','min','exp int'],['tPilot','Temps radiologue quand il pilote le bras','min','exp int']],
+ rec:[['nTransf','Patients qui auraient été déplacés vers un autre site','/an','site int'],['cTransf','Coût unitaire d\'un déplacement','€','site int'],['nHosp','Patients qui auraient été hospitalisés','/an','site int'],['cHosp','Coût unitaire d\'une nuit d\'hospitalisation','€','site int'],['nWait','Heures d\'attente aux urgences évitées','h/an','site int'],['cWait','Coût d\'une heure de présence aux urgences','€/h','site int'],['nCompl','Patients dont une complication liée au retard est évitée','/an','site int'],['cCompl','Surcoût unitaire d\'une complication','€','site int']],
+ lou:[['capt','Part des prescriptions réalisées chez vous','%'],['spare','Créneaux d\'imagerie lourde libres, au total','/sem'],['margeL','Marge par examen d\'imagerie lourde','€']],
+ eq:[['armPatient','Bras patient Swiift : amortissement, par site','€/an','site int'],['armExpert','Bras expert : amortissement, par poste','€/an','exp int'],['nPostes','Nombre de postes experts','postes','exp int'],['echo','Échographe : amortissement et maintenance, par site','€/an','site int'],['conso','Consommables et secrétariat, par examen','€','site int']]
+};
+const IND0=()=>[
+ {n:'Abdomen : foie, voies biliaires, rate, pancréas',share:40,tarif:54.02,conv:30,manip:true},
+ {n:'Reins, vessie, pelvis',share:25,tarif:52,conv:25,manip:true},
+ {n:'Thyroïde et région cervicale',share:15,tarif:35,conv:20,manip:true},
+ {n:'Ostéo-articulaire et parties molles',share:20,tarif:38,conv:50,manip:false}
+];
+const BASE={nSites:1,hJour:0,hSoir:0,hWE:0,duree:20,fill:80,weeks:50,accRate:28,manipRate:38,radRate:110,maj:40,tSup:4,tPilot:15,billable:100,nTransf:0,cTransf:450,nHosp:0,cHosp:1300,nWait:0,cWait:60,nCompl:0,cCompl:1300,capt:60,spare:0,margeL:80,armPatient:30000,armExpert:12000,nPostes:1,echo:12000,conso:3,nonElig:'pilot'};
+const ACTORS={
+ chu:{name:'Hôpital public universitaire',role:'int',roles:['int','exp'],p:{hJour:40,fill:85,billable:85,radRate:95},
+  read:['Les radiologues sont là : le modèle sert à confier l\'acquisition aux manipulateurs et à récupérer du temps médical.','Passez en rôle « Centre expert » pour simuler l\'appui aux hôpitaux périphériques du territoire.']},
+ per:{name:'Hôpital public périphérique',role:'site',roles:['site'],p:{hSoir:20,hWE:16,fill:55,nTransf:300,nHosp:100,nWait:600,spare:10,radRate:130},
+  read:['Le besoin non couvert se situe le soir et le week-end : ce sont les plages ouvertes par défaut.','Vous ne gérez que le bras patient : l\'acte est facturé par le centre expert, pas par vous.','La valeur vient des patients qui ne sont plus déplacés ni hospitalisés faute d\'échographie, et des créneaux d\'imagerie lourde que ces examens remplissent.']},
+ pri:{name:'Groupement de radiologie privé',role:'int',roles:['int'],p:{hJour:35,fill:90,capt:70,spare:25,margeL:90,radRate:180},
+  read:['Fonctionnement intégré uniquement : vous tenez le bras patient et le bras expert, et vous facturez l\'acte.','Les créneaux d\'échographie se remplissent sans difficulté. Le frein est le temps radiologue, mieux rémunéré en imagerie lourde : son coût horaire est saisi ici comme un coût d\'opportunité.','Si vous venez d\'optimiser le plateau lourd et qu\'il reste des créneaux libres, chaque échographie les alimente, à hauteur de 20 à 50 % selon l\'indication.']},
+ tel:{name:'Société de télé-radiologie',role:'exp',roles:['exp'],p:{nSites:8,hSoir:20,hWE:16,fill:55,nonElig:'none',radRate:150,nPostes:2,capt:50,spare:200,margeL:15},
+  read:['Vous ne gérez que le bras expert : vous facturez l\'acte, le site client porte le personnel accompagnant et le bras patient.','Offre limitée aux examens réalisables par un manipulateur, pour garder les radiologues sur la lecture d\'imagerie lourde. Alter Echo fait exception : choisissez « Le radiologue pilote le bras » pour simuler ce cas.','Un radiologue supervise autant de manipulateurs que nécessaire : le résultat croît avec le nombre de sites connectés.']}
+};
+const ROLES={site:['Bras patient seul','Vous accueillez le patient avec un personnel accompagnant et le bras patient : c\'est votre seul coût humain. Vous ne facturez pas l\'acte : le coût de chaque échographie est à votre charge, et le gain vient des déplacements et hospitalisations évités et de l\'imagerie lourde alimentée.'],
+ exp:['Bras expert seul','Vos manipulateurs réalisent les examens au bras expert, vos médecins supervisent ou pilotent eux-mêmes, et vous facturez l\'acte. Le personnel accompagnant et le bras patient sont à la charge du site client.'],
+ int:['Intégré','Vous tenez les deux bouts : personnel accompagnant et bras patient d\'un côté, manipulateurs, médecins et bras expert de l\'autre. Le bras expert facture l\'acte.']};
+let actor='per', S;
+const $=id=>document.getElementById(id);
+const fmt=(v,d=0)=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:d,minimumFractionDigits:d}).format(v).replace('-','−');
+const eur=v=>fmt(Math.round(v))+' €';
+const keur=v=>Math.abs(v)>=10000?fmt(v/1000,Math.abs(v)<100000?1:0)+' k€':eur(v);
+
+function calc(s,fill){
+  if(fill===undefined)fill=s.fill;
+  const R=s.role, tot=s.ind.reduce((a,i)=>a+i.share,0)||1;
+  const hTot=s.hJour+s.hSoir+s.hWE, dur=Math.max(s.duree,1);
+  const cap=hTot*60/dur*s.weeks*s.nSites, k=1+s.maj/100;
+  const hPaid=(s.hJour+(s.hSoir+s.hWE)*k)*s.weeks*s.nSites;
+  const majF=hTot?(s.hJour+(s.hSoir+s.hWE)*k)/hTot:1;
+  let N=0,acts=0,presc=0,radMin=0,nManip=0;
+  s.ind.forEach(i=>{ if(!i.manip&&s.nonElig==='none')return;
+    const n=cap*fill/100*i.share/tot; N+=n; acts+=n*i.tarif; presc+=n*i.conv/100;
+    radMin+=n*(i.manip?s.tSup:s.tPilot); if(i.manip)nManip+=n; });
+  const Nall=cap*fill/100, refused=Nall-N;
+  const wanted=presc*s.capt/100, heavy=Math.min(wanted,s.spare*s.weeks);
+  const radH=radMin/60, radCost=radH*s.radRate*majF;
+  const accCost=hPaid*s.accRate, manipH=nManip*dur/60, manipCost=manipH*s.manipRate*majF, eqP=s.nSites*(s.armPatient+s.echo), cons=N*s.conso, postes=s.nPostes*s.armExpert;
+  const L=[];
+  const sc=s.fill?fill/s.fill:0, transf=Math.min(s.nTransf*sc,N), hosp=Math.min(s.nHosp*sc,N);
+  if(R!=='site')L.push(['Actes facturés par le bras expert',acts*s.billable/100]);
+  if(s.actor==='per')L.push(['Déplacements de patients évités',transf*s.cTransf],['Hospitalisations évitées',hosp*s.cHosp],['Attente aux urgences évitée',s.nWait*sc*s.cWait],['Complications évitées',Math.min(s.nCompl*sc,N)*s.cCompl]);
+  L.push(['Marge d\'imagerie lourde induite',heavy*s.margeL]);
+  if(R!=='exp'){L.push(['Personnel accompagnant',-accCost],['Amortissement du bras patient',-s.nSites*s.armPatient],['Échographe',-s.nSites*s.echo],['Consommables et secrétariat',-cons]);}
+  if(R!=='site')L.push(['Manipulateurs',-manipCost],['Médecins radiologues',-radCost],['Amortissement du bras expert',-postes]);
+  const res=L.reduce((a,l)=>a+l[1],0), own=-L.reduce((a,l)=>a+Math.min(0,l[1]),0);
+  const chain=accCost+manipCost+eqP+cons+radCost+postes;
+  const actsAll=s.ind.reduce((a,i)=>a+Nall*i.share/tot*i.tarif,0);
+  const classic=hPaid*s.radRate+s.nSites*s.echo+Nall*s.conso;
+  return {own,N,Nall,refused,L,res,heavy,lost:wanted-heavy,radH,manipH,accH:hTot*s.weeks*s.nSites,nManip,chain,classic,classH:hTot*s.weeks*s.nSites,cap,
+    cTele:N?chain/N:0,cClass:Nall?classic/Nall:0};
+}
+
+function setActor(a){
+  actor=a; const A=ACTORS[a];
+  S=Object.assign({},BASE,A.p,{role:A.role,actor:a,ind:IND0()});
+  $('p-rec').hidden=a!=='per'; $('p-cmp').hidden=a==='tel';
+  document.querySelectorAll('#actors button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.a===a));
+  $('reading').innerHTML=A.read.map(t=>'<li>'+t+'</li>').join('');
+  for(const g in GROUPS)GROUPS[g].forEach(f=>{$('f-'+f[0]).value=S[f[0]]});
+  $('f-nonElig').value=S.nonElig;
+  $('ind').innerHTML=S.ind.map((i,x)=>`<tr><td>${i.n}</td>
+    <td><input type="number" id="i-${x}-share" min="0" max="100" value="${i.share}" aria-label="Part, ${i.n}"></td>
+    <td><input type="number" id="i-${x}-tarif" min="0" step="0.01" value="${i.tarif}" aria-label="Tarif, ${i.n}"></td>
+    <td><input type="number" id="i-${x}-conv" min="0" max="100" value="${i.conv}" aria-label="Imagerie lourde induite, ${i.n}"></td>
+    <td><input type="checkbox" id="i-${x}-manip" ${i.manip?'checked':''} aria-label="Manipulateur seul, ${i.n}"></td></tr>`).join('');
+  setRole(S.role);
+}
+function setRole(r){
+  S.role=r;
+  document.querySelectorAll('#roles button').forEach(b=>b.hidden=!ACTORS[actor].roles.includes(b.dataset.r));
+  document.querySelectorAll('.field[data-roles]').forEach(f=>f.hidden=!f.dataset.roles.includes(r));
+  document.querySelectorAll('#roles button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===r));
+  $('role-hint').textContent=ROLES[r][1];
+  render();
+}
+
+function render(){
+  const c=calc(S), ok=c.res>=0;
+  $('b-res').textContent=keur(c.res); $('b-res').className='v';
+  $('b-pill').textContent=ok?'Rentable':'Déficitaire'; $('b-pill').className='pill '+(ok?'ok':'ko');
+  $('b-n').textContent=fmt(c.N); $('b-m').textContent=c.N?fmt(c.res/c.N,1)+' €':'–';
+  let be=null, pts=[];
+  for(let f=0;f<=100;f+=2){const r=calc(S,f).res; pts.push([f,r]); }
+  for(let f=1;f<=100;f++){ if(calc(S,f).res>=0){be=f;break;} }
+  $('b-be').textContent=be===null?'Non atteint':be+' % de remplissage';
+
+  const wk=S.weeks*S.nSites||1;
+  const K=[['Examens par semaine et par site',fmt(c.N/wk,0),be!==null?'seuil : '+fmt(calc(S,be).N/wk,0):'seuil hors de portée'],
+   ['Coût par échographie, à votre charge',c.N?fmt(c.own/c.N,1)+' €':'–','charges de votre périmètre'],
+   ['Réalisés par le manipulateur',c.N?fmt(c.nManip/c.N*100)+' %':'–','le reste est piloté par le radiologue'],
+   ['Personnel accompagnant',fmt(c.accH/1600,1)+' ETP',fmt(c.accH)+' h par an'+(S.role==='exp'?', côté sites clients':'')],
+   ['Manipulateurs',fmt(c.manipH/1600,1)+' ETP',fmt(c.manipH)+' h par an'+(S.role==='site'?', côté centre expert':'')],
+   ['Médecins radiologues',fmt(c.radH/1600,2)+' ETP',fmt(c.radH)+' h par an'+(S.role==='site'?', côté centre expert':'')],
+   ['Imagerie lourde induite',fmt(c.heavy)+' examens','par an, réalisés chez vous']];
+  $('kpis').innerHTML=K.map(k=>`<div class="kpi"><span class="label">${k[0]}</span><span class="v">${k[1]}</span><span class="s">${k[2]}</span></div>`).join('');
+  const notes=[];
+  if(c.cap===0)notes.push('Aucune plage horaire ouverte : renseignez des heures en journée, le soir ou le week-end.');
+  if(c.refused>0.5)notes.push(fmt(c.refused)+' demandes par an ne sont pas prises en charge, faute de radiologue pour piloter le bras.');
+  if(c.lost>0.5)notes.push(fmt(c.lost)+' prescriptions d\'imagerie lourde par an dépassent vos créneaux libres et ne sont pas comptées.');
+  if(S.role!=='site'&&c.radH>S.nPostes*S.hJour*S.weeks+S.nPostes*(S.hSoir+S.hWE)*S.weeks&&c.cap>0)notes.push('Le temps radiologue dépasse l\'amplitude couverte par vos postes experts : ajoutez un poste.');
+  $('notes').innerHTML=notes.map(n=>'<div class="note">'+n+'</div>').join('');
+
+  const mx=Math.max(1,...c.L.map(l=>Math.abs(l[1])));
+  $('pl').innerHTML=c.L.map(l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`).join('')
+   +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`;
+
+  const d=c.classic-c.chain;
+  $('cmp').innerHTML=`<span></span><span class="h">Télé-échographie</span><span class="h">Classique</span>
+   <span>Coût de production annuel</span><span class="num n">${eur(c.chain)}</span><span class="num n">${eur(c.classic)}</span>
+   <span>Coût par examen</span><span class="num n">${fmt(c.cTele,1)} €</span><span class="num n">${fmt(c.cClass,1)} €</span>
+   <span>Heures de radiologue par an</span><span class="num n">${fmt(c.radH)}</span><span class="num n">${fmt(c.classH)}</span>
+   <span>Examens réalisés par an</span><span class="num n">${fmt(c.N)}</span><span class="num n">${fmt(c.Nall)}</span>
+   <span class="sep" style="grid-column:1/-1;border-top:1px solid var(--line)"></span>
+   <span class="tot" style="grid-column:1/-1">${d>=0?'Économie':'Surcoût'} de ${eur(Math.abs(d))} par an sur toute la chaîne, et ${fmt(Math.max(0,c.classH-c.radH))} heures de radiologue rendues à d'autres activités.</span>`;
+  chart(pts,be);
+}
+
+function chart(pts,be){
+  const W=560,H=250,l=64,r=18,t=16,b=38;
+  let lo=Math.min(0,...pts.map(p=>p[1])),hi=Math.max(0,...pts.map(p=>p[1]));
+  if(hi-lo<1){hi=1000}
+  const raw=(hi-lo)/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw);
+  lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const X=f=>l+f/100*(W-l-r), Y=v=>t+(hi-v)/(hi-lo)*(H-t-b);
+  let g='';
+  for(let v=lo;v<=hi+1e-6;v+=step)g+=`<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="${Math.abs(v)<1e-6?0:1}"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${fmt(v/1000)} k€</text>`;
+  for(let f=0;f<=100;f+=20)g+=`<text x="${X(f)}" y="${H-b+16}" text-anchor="middle">${f} %</text>`;
+  g+=`<text x="${(l+W-r)/2}" y="${H-4}" text-anchor="middle">Taux de remplissage</text>`;
+  g+=`<line x1="${l}" x2="${W-r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1.2"/>`;
+  const path=pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ');
+  g+=`<path d="${path} L${X(100)} ${Y(0)} L${X(0)} ${Y(0)} Z" fill="var(--accent)" fill-opacity=".12"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.2"/>`;
+  if(be!==null&&be>1&&be<100)g+=`<line x1="${X(be)}" x2="${X(be)}" y1="${t}" y2="${H-b}" stroke="var(--muted)" stroke-dasharray="3 3" fill="none"/><text x="${X(be)+(be>75?-6:6)}" y="${t+11}" text-anchor="${be>75?'end':'start'}">seuil ${be} %</text>`;
+  const cf=Math.max(0,Math.min(100,S.fill)),cv=calc(S,cf).res;
+  g+=`<circle cx="${X(cf)}" cy="${Y(cv)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+  $('chart').innerHTML=g;
+}
+
+// construction
+$('actors').innerHTML=Object.keys(ACTORS).map(a=>`<button type="button" data-a="${a}" aria-pressed="false">${ACTORS[a].name}</button>`).join('');
+$('roles').innerHTML=Object.keys(ROLES).map(r=>`<button type="button" data-r="${r}" aria-pressed="false">${ROLES[r][0]}</button>`).join('');
+for(const g in GROUPS)document.querySelector(`[data-group="${g}"]`).innerHTML=GROUPS[g].map(f=>`<div class="field"${f[3]?` data-roles="${f[3]}"`:''}><label for="f-${f[0]}">${f[1]}</label><span class="inp"><input type="number" id="f-${f[0]}" min="0" step="any" inputmode="decimal"><span class="u">${f[2]}</span></span></div>`).join('');
+$('actors').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setActor(b.dataset.a)});
+$('roles').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setRole(b.dataset.r)});
+$('inputs').addEventListener('input',e=>{
+  const id=e.target.id||'';
+  if(id==='f-nonElig'){S.nonElig=e.target.value}
+  else if(id.startsWith('f-')){S[id.slice(2)]=Math.max(0,parseFloat(e.target.value)||0)}
+  else if(id.startsWith('i-')){const p=id.split('-');S.ind[+p[1]][p[2]]=p[2]==='manip'?e.target.checked:Math.max(0,parseFloat(e.target.value)||0)}
+  else return;
+  render();
+});
+setActor(actor);
+</script>
+
+</body>
+</html>
