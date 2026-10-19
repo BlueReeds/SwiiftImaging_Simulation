@@ -121,6 +121,8 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
 .dtab td:first-child,.dtab th:first-child{font-family:var(--body);text-align:left;white-space:normal;color:var(--muted)}
 .dtab .on{background:var(--accent-soft)}
 .dtab tr.grp td{font-family:var(--body);font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent-text);font-weight:600;border-top:1px solid var(--line);padding-top:10px}
+.pl .sub-l{font-weight:600;border-top:1px solid var(--line);padding-top:4px}
+.pl .gap{grid-column:1/-1;height:6px}
 .sub:first-child{border-top:0;padding-top:0;margin-top:0}
 </style>
 
@@ -361,7 +363,6 @@ function renderDash(){
    +row('Résultat annuel',(st,x,a)=>cell(a,keur(x.c.res),x.c.res>=0?'pos':'neg'))
    +row('Actes par an',(st,x,a)=>cell(a,fmt(x.c.N)))
    +row('Seuil de rentabilité',(st,x,a)=>cell(a,x.be===null?'Non atteint':fmt(x.be)+' actes/an'))
-   +row('Rendement annuel de l\'investissement',(st,x,a)=>cell(a,x.c.inv?fmt(x.c.res/x.c.inv*100)+' %':'–'))
    +row('Investissement en bras',(st,x,a)=>cell(a,keur(x.c.inv)))
    +row('Investissement amorti en, si payé comptant',(st,x,a)=>cell(a,!x.c.inv?'–':x.c.cash>0?fmt(Math.ceil(x.c.inv/(x.c.cash/12)))+' mois':'Non amorti'))+'</tbody>';
 }
@@ -380,9 +381,7 @@ function render(){
   const K=[['Actes par an',fmt(c.N),`${fmt(c.P.n)} la nuit, ${fmt(c.P.w)} le week-end`]];
   if(S.role==='site')K.push(['Radiologue','Externe','ressource illimitée, sans coût']);
   else K.push(['Remplissage des bras experts',c.fill===null?'–':fmt(c.fill*100)+' %',`capacité de ${fmt(isFinite(c.C)?c.C:0)} actes par an`]);
-  K.push(['Coût par acte, à votre charge',c.N?fmt(c.own/c.N,1)+' €':'–','charges de votre périmètre']);
   if(actor==='chu'||actor==='pri')K.push(['Réalisés par le manipulateur',fmt(c.m*100)+' %','le reste par le radiologue']);
-  if(S.role!=='exp')K.push(['Personnel accompagnant',fmt(c.accH/1600,2)+' ETP',fmt(c.accH)+' h par an']);
   if(S.role!=='site')K.push(['Manipulateurs radio',fmt(c.manipH/1600,2)+' ETP',fmt(c.manipH)+' h par an'],['Radiologues',fmt(c.radH/1600,2)+' ETP',fmt(c.radH)+' h par an']);
   if(actor==='pri')K.push(['Scanners induits',fmt(c.ct),'par an, réalisés chez vous'],['IRM induites',fmt(c.irm),'par an, réalisées chez vous']);
   $('kpis').innerHTML=K.map(k=>`<div class="kpi"><span class="label">${k[0]}</span><span class="v">${k[1]}</span><span class="s">${k[2]}</span></div>`).join('');
@@ -396,7 +395,10 @@ function render(){
   $('notes').innerHTML=notes.map(n=>'<div class="note">'+n+'</div>').join('');
 
   const mx=Math.max(1,...c.L.map(l=>Math.abs(l[1])));
-  $('pl').innerHTML=c.L.map(l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`).join('')
+  const line=l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`;
+  const rev=c.L.filter(l=>l[1]>=0),dep=c.L.filter(l=>l[1]<0),sum=a=>a.reduce((x,l)=>x+l[1],0);
+  const sub=(lab,v)=>`<span class="sub-l">${lab}</span><span></span><span class="num sub-l" style="text-align:right">${eur(v)}</span><span class="gap"></span>`;
+  $('pl').innerHTML=rev.map(line).join('')+sub('Total des revenus',sum(rev))+dep.map(line).join('')+sub('Total des dépenses',sum(dep))
    +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`
    +(S.role==='site'?'':`<span class="sep"></span><span class="tot">CA global généré</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span><span style="color:var(--muted);padding-left:12px">dont direct (échographie)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caDir)}</span><span style="color:var(--muted);padding-left:12px">dont indirect (scanner et IRM induits)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caInd)}</span>`);
 
