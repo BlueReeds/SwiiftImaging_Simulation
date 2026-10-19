@@ -141,9 +141,7 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
   <div class="bar" aria-live="polite">
     <div class="big"><span class="k">Résultat annuel</span><span class="v" id="b-res"></span><span class="pill" id="b-pill"></span></div>
     <div><span class="k">Actes par an</span><span class="v" id="b-n"></span></div>
-    <div><span class="k">Marge par acte</span><span class="v" id="b-m"></span></div>
     <div><span class="k">Seuil de rentabilité</span><span class="v" id="b-be"></span></div>
-    <div><span class="k">Rendement annuel de l'investissement</span><span class="v" id="b-roi"></span><span class="k" id="b-inv" style="margin-top:2px"></span></div>
   </div>
 
   <section class="panel rolewide">
@@ -209,7 +207,7 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
 
     <div class="col">
       <section class="panel">
-        <h2>Organisation obtenue</h2>
+        <h2>Organisation autour de l'activité HAPTUS</h2>
         <div class="kpis" id="kpis"></div>
         <div id="notes" style="display:flex;flex-direction:column;gap:6px"></div>
       </section>
@@ -242,10 +240,10 @@ const GROUPS={
   ['#','Manipulateur radio','exp int'],['manipRate','Coût horaire chargé','€/h','exp int'],['tManip','Temps par examen qu\'il réalise','min','exp int'],
   ['#','Radiologue','exp int'],['radRate','Coût horaire ou coût d\'opportunité','€/h','exp int'],['tRad','Temps par examen qu\'il réalise','min','chu pri'],['tSup','Temps de supervision par examen du manipulateur','min','exp int'],
   ['#','Nuit et week-end'],['maj','Majoration des coûts horaires','%']],
- rev:[['surNuit','Modificateur U, acte de nuit (20 h à 8 h)','€'],['surWE','Modificateur F, dimanche ou jour férié','€'],['partF','Part des actes de week-end éligibles à F','%'],['partIntel','Part de la cotation revenant au téléradiologue','%','tel']],
+ rev:[['surNuit','Modificateur U, acte de nuit (20 h à 8 h)','€'],['surWE','Modificateur F, dimanche ou jour férié','€'],['partF','Part des actes de week-end éligibles à F','%'],['partIntel','Part de la cotation revenant au téléradiologue','%','tel'],['depass','Dépassement d\'honoraires par acte','€','pri']],
  avoid:[['nTransf','Patients qui auraient été déplacés vers un autre site','/an'],['cTransf','Coût unitaire d\'un déplacement','€'],['nHosp','Patients qui auraient été hospitalisés','/an'],['cHosp','Coût unitaire d\'une nuit d\'hospitalisation','€'],['nWait','Heures d\'attente aux urgences évitées','h/an'],['cWait','Coût d\'une heure de présence aux urgences','€/h'],['nCompl','Patients dont une complication liée au retard est évitée','/an'],['cCompl','Surcoût unitaire d\'une complication','€']],
- lou:[['capt','Part des prescriptions réalisées chez vous','%'],['margeCT','Marge par scanner','€'],['margeIRM','Marge par IRM','€']],
- eq:[['priceP','Bras patient : prix d\'achat, par bras','€','site int'],['echo','Échographe : amortissement et maintenance, par bras patient','€/an','site int'],['priceE','Bras expert : prix d\'achat, par bras','€','exp int'],['years','Durée d\'amortissement des bras','ans'],['conso','Consommables et secrétariat, par examen','€','site int']]
+ lou:[['capt','Part des prescriptions réalisées chez vous','%'],['caCT','Chiffre d\'affaires par scanner','€'],['caIRM','Chiffre d\'affaires par IRM','€']],
+ eq:[['priceP','Bras patient : prix d\'achat, par bras','€','site int'],['echo','Échographe : amortissement et maintenance, par bras patient','€/an','site int'],['priceE','Bras expert : prix d\'achat, par bras','€','exp int'],['?cockpit','Ajouter un cockpit à chaque bras expert (option)','exp int'],['priceC','Cockpit : prix d\'achat, par bras expert','€','exp int'],['years','Durée d\'amortissement des bras','ans'],['conso','Consommables et secrétariat, par examen','€','site int']]
 };
 const IND0=()=>[
  {n:'Abdomen : foie, voies biliaires, rate, pancréas',share:40,tarif:54.02,ct:20,irm:5,manip:true},
@@ -261,17 +259,21 @@ const BASE={nExpert:0,nPatient:0,nConn:0,ratio:false,weeks:52,feries:11,duree:15
  accRate:28,tAcc:20,manipRate:38,tManip:15,radRate:110,tRad:15,tSup:2,maj:40,
  surNuit:25.15,surWE:19.06,partF:55,partIntel:100,
  nTransf:0,cTransf:450,nHosp:0,cHosp:1300,nWait:0,cWait:60,nCompl:0,cCompl:1300,
- capt:70,spareCT:0,margeCT:60,spareIRM:0,margeIRM:120,
- priceP:130000,priceE:130000,years:5,echo:12000,conso:1,nonElig:'pilot'};
+ capt:70,depass:0,spareCT:0,caCT:150,spareIRM:0,caIRM:250,
+ priceP:130000,priceE:130000,cockpit:false,priceC:30000,years:5,echo:12000,conso:1,nonElig:'pilot'};
 const ACTORS={
  chu:{name:'Hôpital public universitaire',role:'int',roles:['int'],p:{nExpert:1,nPatient:3,ratio:true,dJour:12,hJour:10,billable:85,radRate:95,nTransf:300,nHosp:100,nWait:600},
-  read:['Fonctionnement intégré : 1 bras expert pour 3 bras patients, en journée de semaine.','Les revenus cumulent les actes facturés et les coûts évités : déplacements, hospitalisations, attentes et complications.']},
+  intro:'Vous disposez a minima d\'1 cockpit de contrôle avec son bras expert et de plusieurs bras patients.',
+  read:['Fonctionnement intégré : 1 bras expert contrôle 3 bras patients (setup standard recommandé), pour une activité traditionnellement de jour en semaine.']},
  per:{name:'Hôpital public périphérique',role:'site',roles:['site'],p:{nPatient:1,dNuit:5,dWE:10,nTransf:300,nHosp:100,nWait:600},
-  read:['Vous n\'avez que des bras patients. L\'examen est réalisé à distance par un radiologue extérieur, sans coût pour l\'hôpital et sans limite de disponibilité.','L\'activité se raisonne en actes par période, toutes indications confondues : 5 par nuit et 10 par jour de week-end par défaut.','Vous ne facturez pas l\'acte : vos seuls revenus sont les coûts évités (déplacements, hospitalisations, attentes, complications).']},
+  intro:'Vous bénéficiez de l\'installation d\'1 bras patient. Le set-up recommande l\'accompagnement des actes par un personnel en local (pas nécessairement un PDS). L\'examen est réalisé à distance depuis un centre expert extérieur (CHU, groupement de radiologie...), qui facture l\'acte et vous conventionne en fonction des accords conclus.',
+  read:['Vous exploitez uniquement 1 ou plusieurs bras patients. L\'examen est réalisé à distance par un expert extérieur, sans coût pour l\'hôpital et sans limite de disponibilité.','L\'activité se concentre sur des plages horaires en forte tension et recouvre toutes indications cliniques confondues : 5 actes sur la tranche horaire 0 h 00 - 8 h 00, 10 actes par jour les week-ends et jours fériés. Le service d\'astreinte est garanti par l\'opérateur expert à distance.','Vous garantissez la continuité des soins sur des périodes habituellement non pourvues par des experts et limitez ainsi les risques de complications inutiles et les coûts associés de prise en charge.']},
  pri:{name:'Groupement de radiologie privé',role:'int',roles:['int'],p:{nExpert:1,nPatient:3,ratio:true,dJour:20,hJour:12,radRate:180},
-  read:['Le modèle vient en complément de l\'activité en présentiel, quand l\'offre du centre couvre déjà son bassin de population. Le manipulateur reste au centre, au bras expert, et les bras patients installés à distance couvrent un nouveau bassin.','Gains attendus : plus d\'agilité sur l\'expertise, plus de flexibilité RH, et un radiologue qui peut intervenir à tout moment, tout en adressant un nouveau bassin.','Fonctionnement intégré uniquement. Le bras expert est le facteur limitant : chacun alimente 3 bras patients.','Ouvert 52 semaines par an, 12 heures par jour en semaine, sans activité le soir ni le week-end.','Chaque échographie génère des scanners et des IRM selon l\'indication. La capacité de ces modalités est considérée comme illimitée.']},
+  intro:'Vous disposez d\'un setup vous garantissant l\'autonomie dans l\'organisation de vos activités, composé a minima d\'1 cockpit expert et de plusieurs bras patients (nous recommandons un setup composé de 5 bras patients minimum). Vos manips (habilités à réaliser des examens échos, dans le cadre d\'un protocole validé) coordonnent avec les radiologues les examens depuis le centre expert à l\'aide d\'1 ou plusieurs bras experts et examinent des patients distribués sur plusieurs centres périphériques à distance.',
+  read:['Le modèle vient en complément de l\'activité en présentiel, quand l\'offre du centre couvre déjà son bassin de population. Le manipulateur reste au centre, au bras expert, et les bras patients installés à distance couvrent un nouveau bassin.','Gains attendus : plus d\'agilité sur l\'expertise, plus de flexibilité RH, et un radiologue qui peut intervenir à tout moment, tout en adressant un nouveau bassin.','Chaque échographie génère des scanners et des IRM selon l\'indication. La capacité de ces modalités est considérée comme illimitée.']},
  tel:{name:'Société de télé-radiologie',role:'exp',roles:['exp'],p:{nExpert:2,nConn:8,dNuit:5,dWE:10,hJour:12,hNuit:12,hWE:24,radRate:150},
-  read:['Vous n\'avez que des bras experts, ouverts 24 h sur 24 et 7 jours sur 7. Les bras patients sont ceux des sites clients connectés.','Volume par bras patient connecté : 5 actes par nuit et 10 par jour de week-end.','Pour simplifier, le manipulateur réalise tous les types d\'actes, sous la supervision du radiologue.','Le revenu ne retient que la cotation intellectuelle des actes.']}
+  intro:'Vos manipulateurs et radiologues réalisent les examens depuis vos bras experts pour des sites partenaires, et vous facturez l\'acte.',
+  read:['Vous disposez uniquement de bras experts, permettant une exploitation de l\'activité écho à distance 24/7. Les bras patients sont connectés à des sites partenaires.','Volume par bras patient connecté : 5 actes par nuit et 10 par jour de week-end.','Pour simplifier, le manip réalise tous les types d\'actes, sous la supervision du radiologue.','Le revenu généré correspond à la cotation intellectuelle de chaque acte, à laquelle peuvent s\'ajouter des forfaits spécifiques (nuit, week-end, dépassements convenus...).']}
 };
 const ROLES={site:['Bras patient seul','Vous installez le patient sous le bras patient avec un personnel accompagnant. L\'examen est réalisé à distance depuis un centre extérieur, qui facture l\'acte.'],
  exp:['Bras expert seul','Vos manipulateurs et radiologues réalisent les examens depuis vos bras experts pour des sites clients, et vous facturez l\'acte.'],
@@ -302,22 +304,26 @@ function calc(s,k){
   if(R!=='site'){
     L.push([A==='tel'?'Actes facturés, cotation intellectuelle':'Actes facturés',N*w(i=>i.tarif)*s.billable/100*(A==='tel'?s.partIntel/100:1)]);
     L.push(['Modificateurs de nuit et de dimanche (U, F)',(P.n*s.surNuit+P.w*s.surWE*s.partF/100)*s.billable/100]);
+    if(A==='pri')L.push(['Dépassements d\'honoraires',N*s.depass*s.billable/100]);
   }
   if(A==='per'||A==='chu'){L.push(['Déplacements de patients évités',Math.min(s.nTransf*k,N)*s.cTransf],['Hospitalisations évitées',Math.min(s.nHosp*k,N)*s.cHosp],['Attente aux urgences évitée',s.nWait*k*s.cWait],['Complications évitées',Math.min(s.nCompl*k,N)*s.cCompl]);}
   let ct=0,irm=0,lost=0;
   if(A==='pri'){const ctW=N*w(i=>i.ct)/100*s.capt/100,irmW=N*w(i=>i.irm)/100*s.capt/100;
     ct=ctW;irm=irmW;
-    L.push(['Marge des scanners induits',ct*s.margeCT],['Marge des IRM induites',irm*s.margeIRM]);}
+    L.push(['CA des scanners induits',ct*s.caCT],['CA des IRM induites',irm*s.caIRM]);}
   const accH=N*s.tAcc/60,manipH=nManip*s.tManip/60,radH=(nRad*s.tRad+nManip*s.tSup)/60;
   if(R!=='exp')L.push(['Personnel accompagnant',-accH*s.accRate*majF],['Amortissement des bras patients',-s.nPatient*s.priceP/Math.max(s.years,1)],['Échographes',-s.nPatient*s.echo],['Consommables et secrétariat',-N*s.conso]);
   if(R!=='site')L.push(['Manipulateurs radio',-manipH*s.manipRate*majF],['Radiologues',-radH*s.radRate*majF],['Amortissement des bras experts',-s.nExpert*s.priceE/Math.max(s.years,1)]);
-  const inv=(R!=='exp'?s.nPatient*s.priceP:0)+(R!=='site'?s.nExpert*s.priceE:0),res=L.reduce((a,l)=>a+l[1],0),own=-L.reduce((a,l)=>a+Math.min(0,l[1]),0);
+  if(R!=='site'&&s.cockpit)L.push(['Amortissement des cockpits',-s.nExpert*s.priceC/Math.max(s.years,1)]);
+  const inv=(R!=='exp'?s.nPatient*s.priceP:0)+(R!=='site'?s.nExpert*(s.priceE+(s.cockpit?s.priceC:0)):0),res=L.reduce((a,l)=>a+l[1],0),own=-L.reduce((a,l)=>a+Math.min(0,l[1]),0);
   const openH=s.nPatient*(s.hJour*days.j+s.hNuit*days.n+s.hWE*days.w),offOpen=openH?s.nPatient*(s.hNuit*days.n+s.hWE*days.w)/openH:0;
   const classic=openH*s.radRate*(1+s.maj/100*offOpen)+s.nPatient*s.echo+N*s.conso;
-  return {inv,L,res,own,N,P,days,D,Dall,C,fill:C>0&&isFinite(C)?N/C:null,over:D-N,refused:Dall-D,m,accH,manipH,radH,ct,irm,lost,openH,classic};
+  const caDir=L.filter(l=>/^(Actes facturés|Modificateurs|Dépassements)/.test(l[0])).reduce((a,l)=>a+l[1],0),caInd=ct*s.caCT+irm*s.caIRM;
+  return {cash:res+inv/Math.max(s.years,1),caDir,caInd,inv,L,res,own,N,P,days,D,Dall,C,fill:C>0&&isFinite(C)?N/C:null,over:D-N,refused:Dall-D,m,accH,manipH,radH,ct,irm,lost,openH,classic};
 }
 
 function fieldHTML(f){
+  if(f[0][0]==='?')return `<label class="check" data-show="${f[2]}"><input type="checkbox" id="f-${f[0].slice(1)}"> ${f[1]}</label>`;
   if(f[0]==='#')return `<div class="sub"${f[2]?` data-show="${f[2]}"`:''}>${f[1]}</div>`;
   return `<div class="field"${f[3]?` data-show="${f[3]}"`:''}><label for="f-${f[0]}">${f[1]}</label><span class="inp"><input type="number" id="f-${f[0]}" min="0" step="any" inputmode="decimal"><span class="u">${f[2]}</span></span></div>`;
 }
@@ -338,7 +344,7 @@ function setRole(r){
   S.role=r;
   document.querySelectorAll('#roles button').forEach(b=>{b.hidden=!ACTORS[actor].roles.includes(b.dataset.r);b.setAttribute('aria-pressed',b.dataset.r===r)});
   document.querySelectorAll('[data-show]').forEach(el=>el.hidden=!shows(el.dataset.show));
-  $('role-hint').textContent=ROLES[r][1];$('arms-hint').textContent=ARMHINT[r];
+  $('role-hint').textContent=ACTORS[actor].intro||ROLES[r][1];$('arms-hint').textContent=ARMHINT[r];
   render();
 }
 
@@ -354,10 +360,10 @@ function renderDash(){
    +`<tr class="grp"><td colspan="5">Indicateurs</td></tr>`
    +row('Résultat annuel',(st,x,a)=>cell(a,keur(x.c.res),x.c.res>=0?'pos':'neg'))
    +row('Actes par an',(st,x,a)=>cell(a,fmt(x.c.N)))
-   +row('Marge par acte',(st,x,a)=>cell(a,x.c.N?fmt(x.c.res/x.c.N,1)+' €':'–'))
    +row('Seuil de rentabilité',(st,x,a)=>cell(a,x.be===null?'Non atteint':fmt(x.be)+' actes/an'))
    +row('Rendement annuel de l\'investissement',(st,x,a)=>cell(a,x.c.inv?fmt(x.c.res/x.c.inv*100)+' %':'–'))
-   +row('Investissement en bras',(st,x,a)=>cell(a,keur(x.c.inv)))+'</tbody>';
+   +row('Investissement en bras',(st,x,a)=>cell(a,keur(x.c.inv)))
+   +row('Investissement amorti en, si payé comptant',(st,x,a)=>cell(a,!x.c.inv?'–':x.c.cash>0?fmt(Math.ceil(x.c.inv/(x.c.cash/12)))+' mois':'Non amorti'))+'</tbody>';
 }
 function render(){
   renderDash();
@@ -365,8 +371,7 @@ function render(){
   $('b-res').textContent=keur(c.res);
   $('b-pill').textContent=ok?'Rentable':'Déficitaire';$('b-pill').className='pill '+(ok?'ok':'ko');
   $('b-n').textContent=fmt(c.N);
-  $('b-roi').textContent=c.inv?fmt(c.res/c.inv*100)+' %':'–';
-  $('b-inv').textContent=c.inv?'résultat / '+keur(c.inv)+' de bras achetés':'aucun bras acheté';$('b-m').textContent=c.N?fmt(c.res/c.N,1)+' €':'–';
+
   let be=null;const pts=[];
   for(let k=0;k<=2.0001;k+=0.04)pts.push([k*100,calc(S,k).res]);
   for(let k=0;k<=3;k+=0.01){if(calc(S,k).res>=0){be=k;break}}
@@ -379,7 +384,7 @@ function render(){
   if(actor==='chu'||actor==='pri')K.push(['Réalisés par le manipulateur',fmt(c.m*100)+' %','le reste par le radiologue']);
   if(S.role!=='exp')K.push(['Personnel accompagnant',fmt(c.accH/1600,2)+' ETP',fmt(c.accH)+' h par an']);
   if(S.role!=='site')K.push(['Manipulateurs radio',fmt(c.manipH/1600,2)+' ETP',fmt(c.manipH)+' h par an'],['Radiologues',fmt(c.radH/1600,2)+' ETP',fmt(c.radH)+' h par an']);
-  if(actor==='pri')K.push(['Imagerie lourde induite',fmt(c.ct)+' + '+fmt(c.irm),'scanners et IRM par an']);
+  if(actor==='pri')K.push(['Scanners induits',fmt(c.ct),'par an, réalisés chez vous'],['IRM induites',fmt(c.irm),'par an, réalisées chez vous']);
   $('kpis').innerHTML=K.map(k=>`<div class="kpi"><span class="label">${k[0]}</span><span class="v">${k[1]}</span><span class="s">${k[2]}</span></div>`).join('');
 
   const notes=[];
@@ -392,7 +397,8 @@ function render(){
 
   const mx=Math.max(1,...c.L.map(l=>Math.abs(l[1])));
   $('pl').innerHTML=c.L.map(l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`).join('')
-   +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`;
+   +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`
+   +(S.role==='site'?'':`<span class="sep"></span><span class="tot">CA global généré</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span><span style="color:var(--muted);padding-left:12px">dont direct (échographie)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caDir)}</span><span style="color:var(--muted);padding-left:12px">dont indirect (scanner et IRM induits)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caInd)}</span>`);
 
   if(S.role==='int'){const d=c.classic-c.own;
     $('cmp').innerHTML=`<span></span><span class="h">Télé-échographie</span><span class="h">Classique</span>
@@ -432,6 +438,7 @@ $('inputs').addEventListener('input',e=>{
   const el=e.target,id=el.id||'';
   if(id==='f-nonElig')S.nonElig=el.value;
   else if(id==='f-ratio'){S.ratio=el.checked;if(S.ratio){S.nPatient=3*S.nExpert;$('f-nPatient').value=S.nPatient}}
+  else if(el.type==='checkbox'&&id.startsWith('f-'))S[id.slice(2)]=el.checked;
   else if(id.startsWith('f-')){const k=id.slice(2);S[k]=Math.max(0,parseFloat(el.value)||0);
     if(S.ratio&&S.role==='int'){if(k==='nExpert'){S.nPatient=3*S.nExpert;$('f-nPatient').value=S.nPatient}
       if(k==='nPatient'){S.ratio=false;$('f-ratio').checked=false}}}
