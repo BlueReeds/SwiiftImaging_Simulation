@@ -221,6 +221,11 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
         <h2>Résultat selon le volume demandé</h2>
         <svg id="chart" viewBox="0 0 560 250" role="img" aria-label="Résultat annuel en fonction du volume demandé"></svg>
       </section>
+      <section class="panel">
+        <h2>Amortissement de l'investissement</h2>
+        <p class="hint">Bras achetés comptant : temps nécessaire pour que les gains cumulés remboursent l'investissement.</p>
+        <svg id="chart2" viewBox="0 0 560 260" role="img" aria-label="Gains cumulés en fonction des mois"></svg>
+      </section>
       <section class="panel" data-show="int">
         <h2>Face à l'échographie classique</h2>
         <p class="hint">Mêmes actes, radiologue présent sur chaque site patient pendant toute la plage d'ouverture.</p>
@@ -229,7 +234,7 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
     </div>
   </div>
 
-  <footer>Outil d'aide à la réflexion. Les valeurs par défaut sont des hypothèses d'exemple, y compris les tarifs d'actes, les coûts horaires, les taux de conversion et les prix d'équipement ; le tarif de l'échographie abdominale (54,02 €) et les modificateurs U et F sont calés sur la CCAM. Vérifiez chaque paramètre avec vos propres données avant toute décision. Les coûts de personnel sont comptés sur le temps passé par examen ; un équivalent temps plein vaut 1 600 heures par an.</footer>
+  <footer>Outil d'aide à la réflexion. Les valeurs par défaut sont des hypothèses d'exemple, y compris les tarifs d'actes, les coûts horaires, les taux de conversion et les prix d'équipement ; le tarif de l'échographie abdominale (54,02 €) et les modificateurs U et F sont calés sur la CCAM. Vérifiez chaque paramètre avec vos propres données avant toute décision. Les coûts de personnel sont comptés sur le temps passé par examen ; un temps plein à 35 h vaut 1 607 heures par an.</footer>
 </div>
 
 <script>
@@ -238,8 +243,8 @@ const GROUPS={
   ['#','Demande par bras patient'],['dJour','Actes par jour ouvré','actes'],['dNuit','Actes par nuit de semaine','actes'],['dWE','Actes par jour de week-end ou férié','actes'],
   ['#','Disponibilité de chaque bras expert','exp int'],['hJour','Heures par jour ouvré','h','exp int'],['hNuit','Heures par nuit de semaine','h','exp int'],['hWE','Heures par jour de week-end ou férié','h','exp int'],
   ['#','Facturation','exp int'],['billable','Part des actes facturés','%','exp int']],
- rh:[['#','Personnel accompagnant, côté patient','site int'],['accRate','Coût horaire chargé','€/h','site int'],['tAcc','Temps passé par examen','min','site int'],
-  ['#','Manipulateur radio','exp int'],['manipRate','Coût horaire chargé','€/h','exp int'],['tManip','Temps par examen qu\'il réalise','min','exp int'],
+ rh:[['#','Personnel accompagnant, côté patient','site int'],['accYear','Coût annuel chargé, temps plein 35 h','€/an','site int'],['tAcc','Temps passé par examen','min','site int'],
+  ['#','Manipulateur radio','exp int'],['manipYear','Coût annuel chargé, temps plein 35 h','€/an','exp int'],['tManip','Temps par examen qu\'il réalise','min','exp int'],
   ['#','Radiologue','exp int'],['radRate','Coût horaire ou coût d\'opportunité','€/h','exp int'],['tRad','Temps par examen qu\'il réalise','min','chu pri'],['tSup','Temps de supervision par examen du manipulateur','min','exp int'],
   ['#','Nuit et week-end'],['maj','Majoration des coûts horaires','%']],
  rev:[['surNuit','Modificateur U, acte de nuit (20 h à 8 h)','€'],['surWE','Modificateur F, dimanche ou jour férié','€'],['partF','Part des actes de week-end éligibles à F','%'],['partIntel','Part de la cotation revenant au téléradiologue','%','tel'],['depass','Dépassement d\'honoraires par acte','€','pri']],
@@ -258,7 +263,7 @@ const IND_PRI=()=>[
  {n:'Ostéo-articulaire et parties molles',share:40,tarif:38,ct:5,irm:50,manip:false}
 ];
 const BASE={nExpert:0,nPatient:0,nConn:0,ratio:false,weeks:52,feries:11,duree:15,dJour:0,dNuit:0,dWE:0,hJour:0,hNuit:0,hWE:0,billable:100,
- accRate:28,tAcc:20,manipRate:38,tManip:15,radRate:110,tRad:15,tSup:2,maj:40,
+ accYear:45000,tAcc:20,manipYear:61000,tManip:15,radRate:110,tRad:15,tSup:2,maj:40,
  surNuit:25.15,surWE:19.06,partF:55,partIntel:100,
  nTransf:0,cTransf:450,nHosp:0,cHosp:1300,nWait:0,cWait:60,nCompl:0,cCompl:1300,
  capt:70,depass:0,spareCT:0,caCT:150,spareIRM:0,caIRM:250,
@@ -281,6 +286,7 @@ const ROLES={site:['Bras patient seul','Vous installez le patient sous le bras p
  exp:['Bras expert seul','Vos manipulateurs et radiologues réalisent les examens depuis vos bras experts pour des sites clients, et vous facturez l\'acte.'],
  int:['Intégré','Vous avez des bras patients et des bras experts. Le bras expert facture l\'acte et limite l\'activité.']};
 const ARMHINT={site:'Pas de bras expert : l\'examen est réalisé depuis un centre extérieur.',exp:'Pas de bras patient en propre : les bras patients sont ceux des sites clients.',int:'Repère : 1 bras expert pour 3 bras patients.'};
+const ETP=1607;
 const PER={j:['dJour','hJour'],n:['dNuit','hNuit'],w:['dWE','hWE']};
 
 let actor='per',S;const STATES={};
@@ -304,23 +310,22 @@ function calc(s,k){
   const m=allM?1:w(i=>i.manip?1:0),nManip=N*m,nRad=N-nManip,offH=N?(P.n+P.w)/N:0,majF=1+s.maj/100*offH;
   const L=[];
   if(R!=='site'){
-    L.push([A==='tel'?'Actes facturés, cotation intellectuelle':'Actes facturés',N*w(i=>i.tarif)*s.billable/100*(A==='tel'?s.partIntel/100:1)]);
-    L.push(['Modificateurs de nuit et de dimanche (U, F)',(P.n*s.surNuit+P.w*s.surWE*s.partF/100)*s.billable/100]);
-    if(A==='pri')L.push(['Dépassements d\'honoraires',N*s.depass*s.billable/100]);
+    L.push([A==='tel'?'CA induit par l\'activité d\'échographie (cotation intellectuelle)':'CA induit par l\'activité d\'échographie',
+      (N*w(i=>i.tarif)*(A==='tel'?s.partIntel/100:1)+P.n*s.surNuit+P.w*s.surWE*s.partF/100+(A==='pri'?N*s.depass:0))*s.billable/100]);
   }
   if(A==='per'||A==='chu'){L.push(['Déplacements de patients évités',Math.min(s.nTransf*k,N)*s.cTransf],['Hospitalisations évitées',Math.min(s.nHosp*k,N)*s.cHosp],['Attente aux urgences évitée',s.nWait*k*s.cWait],['Complications évitées',Math.min(s.nCompl*k,N)*s.cCompl]);}
   let ct=0,irm=0,lost=0;
   if(A==='pri'){const ctW=N*w(i=>i.ct)/100*s.capt/100,irmW=N*w(i=>i.irm)/100*s.capt/100;
     ct=ctW;irm=irmW;
-    L.push(['CA des scanners induits',ct*s.caCT],['CA des IRM induites',irm*s.caIRM]);}
+    L.splice(1,0,['CA induit par le recrutement sur d\'autres modalités',ct*s.caCT+irm*s.caIRM]);}
   const accH=N*s.tAcc/60,manipH=nManip*s.tManip/60,radH=(nRad*s.tRad+nManip*s.tSup)/60;
-  if(R!=='exp')L.push(['Personnel accompagnant',-accH*s.accRate*majF],['Amortissement des bras patients',-s.nPatient*s.priceP/Math.max(s.years,1)],['Échographes',-s.nPatient*s.echo],['Consommables et secrétariat',-N*s.conso]);
-  if(R!=='site')L.push(['Manipulateurs radio',-manipH*s.manipRate*majF],['Radiologues',-radH*s.radRate*majF],['Amortissement des bras experts',-s.nExpert*s.priceE/Math.max(s.years,1)]);
+  if(R!=='exp')L.push(['Personnel accompagnant',-accH*s.accYear/ETP*majF],['Amortissement des bras patients',-s.nPatient*s.priceP/Math.max(s.years,1)],['Échographes',-s.nPatient*s.echo],['Consommables et secrétariat',-N*s.conso]);
+  if(R!=='site')L.push(['Manipulateurs radio',-manipH*s.manipYear/ETP*majF],['Radiologues',-radH*s.radRate*majF],['Amortissement des bras experts',-s.nExpert*s.priceE/Math.max(s.years,1)]);
   if(R!=='site'&&s.cockpit)L.push(['Amortissement des cockpits',-s.nExpert*s.priceC/Math.max(s.years,1)]);
   const inv=(R!=='exp'?s.nPatient*s.priceP:0)+(R!=='site'?s.nExpert*(s.priceE+(s.cockpit?s.priceC:0)):0),res=L.reduce((a,l)=>a+l[1],0),own=-L.reduce((a,l)=>a+Math.min(0,l[1]),0);
   const openH=s.nPatient*(s.hJour*days.j+s.hNuit*days.n+s.hWE*days.w),offOpen=openH?s.nPatient*(s.hNuit*days.n+s.hWE*days.w)/openH:0;
   const classic=openH*s.radRate*(1+s.maj/100*offOpen)+s.nPatient*s.echo+N*s.conso;
-  const caDir=L.filter(l=>/^(Actes facturés|Modificateurs|Dépassements)/.test(l[0])).reduce((a,l)=>a+l[1],0),caInd=ct*s.caCT+irm*s.caIRM;
+  const caDir=L.filter(l=>/^CA induit par l'activité/.test(l[0])).reduce((a,l)=>a+l[1],0),caInd=ct*s.caCT+irm*s.caIRM;
   return {cash:res+inv/Math.max(s.years,1),caDir,caInd,inv,L,res,own,N,P,days,D,Dall,C,fill:C>0&&isFinite(C)?N/C:null,over:D-N,refused:Dall-D,m,accH,manipH,radH,ct,irm,lost,openH,classic};
 }
 
@@ -382,7 +387,7 @@ function render(){
   if(S.role==='site')K.push(['Radiologue','Externe','ressource illimitée, sans coût']);
   else K.push(['Remplissage des bras experts',c.fill===null?'–':fmt(c.fill*100)+' %',`capacité de ${fmt(isFinite(c.C)?c.C:0)} actes par an`]);
   if(actor==='chu'||actor==='pri')K.push(['Réalisés par le manipulateur',fmt(c.m*100)+' %','le reste par le radiologue']);
-  if(S.role!=='site')K.push(['Manipulateurs radio',fmt(c.manipH/1600,2)+' ETP',fmt(c.manipH)+' h par an'],['Radiologues',fmt(c.radH/1600,2)+' ETP',fmt(c.radH)+' h par an']);
+  if(S.role!=='site')K.push(['Manipulateurs radio',fmt(c.manipH/ETP,2)+' ETP',fmt(c.manipH)+' h par an'],['Radiologues',fmt(c.radH/ETP,2)+' ETP',fmt(c.radH)+' h par an']);
   if(actor==='pri')K.push(['Scanners induits',fmt(c.ct),'par an, réalisés chez vous'],['IRM induites',fmt(c.irm),'par an, réalisées chez vous']);
   $('kpis').innerHTML=K.map(k=>`<div class="kpi"><span class="label">${k[0]}</span><span class="v">${k[1]}</span><span class="s">${k[2]}</span></div>`).join('');
 
@@ -397,10 +402,12 @@ function render(){
   const mx=Math.max(1,...c.L.map(l=>Math.abs(l[1])));
   const line=l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`;
   const rev=c.L.filter(l=>l[1]>=0),dep=c.L.filter(l=>l[1]<0),sum=a=>a.reduce((x,l)=>x+l[1],0);
+  const det=(lab,v)=>`<span style="color:var(--muted);padding-left:14px">${lab}</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(v)}</span>`;
+  const lineX=l=>line(l)+(/^CA induit par le recrutement/.test(l[0])?det('dont CA induit par l\'activité d\'IRM',c.irm*S.caIRM)+det('dont CA induit par l\'activité du scanner',c.ct*S.caCT):'');
   const sub=(lab,v)=>`<span class="sub-l">${lab}</span><span></span><span class="num sub-l" style="text-align:right">${eur(v)}</span><span class="gap"></span>`;
-  $('pl').innerHTML=rev.map(line).join('')+sub('Total des revenus',sum(rev))+dep.map(line).join('')+sub('Total des dépenses',sum(dep))
+  $('pl').innerHTML=rev.map(lineX).join('')+sub('Total des revenus',sum(rev))+dep.map(line).join('')+sub('Total des dépenses',sum(dep))
    +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`
-   +(S.role==='site'?'':`<span class="sep"></span><span class="tot">CA global généré</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span><span style="color:var(--muted);padding-left:12px">dont direct (échographie)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caDir)}</span><span style="color:var(--muted);padding-left:12px">dont indirect (scanner et IRM induits)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caInd)}</span>`);
+   +(S.role==='site'?'':`<span class="sep"></span><span class="tot">CA global généré</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span><span style="color:var(--muted);padding-left:12px">dont échographie (direct)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caDir)}</span><span style="color:var(--muted);padding-left:12px">dont autres modalités (indirect)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caInd)}</span>`);
 
   if(S.role==='int'){const d=c.classic-c.own;
     $('cmp').innerHTML=`<span></span><span class="h">Télé-échographie</span><span class="h">Classique</span>
@@ -409,9 +416,30 @@ function render(){
      <span>Heures de radiologue par an</span><span class="num n">${fmt(c.radH)}</span><span class="num n">${fmt(c.openH)}</span>
      <span class="sep" style="grid-column:1/-1;border-top:1px solid var(--line)"></span>
      <span class="tot" style="grid-column:1/-1">${d>=0?'Économie':'Surcoût'} de ${eur(Math.abs(d))} par an, et ${fmt(Math.max(0,c.openH-c.radH))} heures de radiologue rendues à d'autres activités.</span>`;}
-  chart(pts,be);
+  chart(pts,be);chart2(c);
 }
 
+function chart2(c){
+  const W=560,H=260,l=94,r=24,t=14,b=40,el=$('chart2');
+  if(!c.inv){el.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Aucun bras acheté</text>`;return}
+  const mc=c.cash/12,pay=mc>0?c.inv/mc:Infinity;
+  const M=Math.min(120,Math.max(S.years*12,isFinite(pay)?Math.ceil(pay*1.3/6)*6:S.years*12));
+  const g0=-c.inv,g1=-c.inv+mc*M,lo=Math.min(g0,g1,0),hi=Math.max(g0,g1,0);
+  const raw=(hi-lo)/5||1,mag=Math.pow(10,Math.floor(Math.log10(raw))),step=[1,2,5,10].map(m=>m*mag).find(v=>v>=raw);
+  const yl=Math.floor(lo/step)*step,yh=Math.ceil(hi/step)*step;
+  const X=m=>l+m/M*(W-l-r),Y=v=>t+(yh-v)/(yh-yl)*(H-t-b);
+  const xs=M<=24?6:M<=60?12:24;let g='';
+  for(let v=yl;v<=yh+1e-6;v+=step)g+=`<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-8}" y="${Y(v)+4}" text-anchor="end">${fmt(v/1000)} k€</text>`;
+  for(let m=0;m<=M;m+=xs)g+=`<text x="${X(m)}" y="${H-b+16}" text-anchor="middle">${m}</text>`;
+  g+=`<text x="${(l+W-r)/2}" y="${H-4}" text-anchor="middle">Mois</text><text x="12" y="${t+(H-t-b)/2}" text-anchor="middle" transform="rotate(-90 12 ${t+(H-t-b)/2})">Gains cumulés, nets</text>`;
+  g+=`<line x1="${l}" x2="${W-r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--ink)" stroke-width="1.2"/>`;
+  g+=`<path d="M${X(0).toFixed(1)} ${Y(g0).toFixed(1)} L${X(M).toFixed(1)} ${Y(g1).toFixed(1)} L${X(M).toFixed(1)} ${Y(0).toFixed(1)} L${X(0).toFixed(1)} ${Y(0).toFixed(1)} Z" fill="var(--accent)" fill-opacity=".12"/>`;
+  g+=`<path d="M${X(0).toFixed(1)} ${Y(g0).toFixed(1)} L${X(M).toFixed(1)} ${Y(g1).toFixed(1)}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>`;
+  if(isFinite(pay)&&pay<=M){const lab=`amorti en ${fmt(Math.ceil(pay))} mois`,right=X(pay)<W*0.6;
+    g+=`<line x1="${X(pay)}" x2="${X(pay)}" y1="${Y(0)}" y2="${H-b}" stroke="var(--muted)" stroke-dasharray="3 3" fill="none"/><circle cx="${X(pay)}" cy="${Y(0)}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/><text x="${X(pay)+(right?8:-8)}" y="${Y(0)+16}" text-anchor="${right?'start':'end'}" style="fill:var(--ink)">${lab}</text>`;}
+  else g+=`<text x="${W/2}" y="${t+14}" text-anchor="middle" style="fill:var(--neg)">Investissement non amorti sur ${M} mois</text>`;
+  el.innerHTML=g;
+}
 function chart(pts,be){
   const W=560,H=250,l=64,r=18,t=16,b=38;
   let lo=Math.min(0,...pts.map(p=>p[1])),hi=Math.max(0,...pts.map(p=>p[1]));
