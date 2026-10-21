@@ -132,18 +132,20 @@ footer{font-size:.8rem;color:var(--muted);max-width:80ch}
     <p class="lead">Choisissez un type d'acteur, réglez le nombre de bras, les volumes d'actes et les coûts. Le résultat annuel, le seuil de rentabilité et le remplissage des bras experts se recalculent à chaque saisie.</p>
   </header>
 
-  <section class="panel">
-    <h2>Tableau de bord</h2>
+  <details class="panel" open>
+    <summary><h2>Tableau de bord</h2></summary>
     <div class="scroll"><table class="dtab" id="dash"></table></div>
     <p class="hint">Chaque colonne reprend les réglages en cours de l'acteur. Choisissez un acteur ci-dessous pour modifier ses réglages.</p>
-  </section>
+  </details>
 
   <div class="seg" id="actors" role="group" aria-label="Type d'acteur"></div>
 
   <div class="bar" aria-live="polite">
-    <div class="big"><span class="k">Résultat annuel</span><span class="v" id="b-res"></span><span class="pill" id="b-pill"></span></div>
+    <div class="big"><span class="k" id="b-k1">Résultat annuel</span><span class="v" id="b-res"></span><span class="pill" id="b-pill"></span></div>
+    <div id="b-indw"><span class="k">CA induit IRM et scanner</span><span class="v" id="b-ind"></span></div>
     <div><span class="k">Actes par an</span><span class="v" id="b-n"></span></div>
     <div><span class="k">Seuil de rentabilité</span><span class="v" id="b-be"></span></div>
+    <div><span class="k">Investissement amorti en</span><span class="v" id="b-pay"></span></div>
   </div>
 
   <section class="panel rolewide">
@@ -310,7 +312,7 @@ function calc(s,k){
   const m=allM?1:w(i=>i.manip?1:0),nManip=N*m,nRad=N-nManip,offH=N?(P.n+P.w)/N:0,majF=1+s.maj/100*offH;
   const L=[];
   if(R!=='site'){
-    L.push([A==='tel'?'CA induit par l\'activité d\'échographie (cotation intellectuelle)':'CA induit par l\'activité d\'échographie',
+    L.push([A==='tel'?'CA induit par l\'activité d\'échographie (cotation intellectuelle)':A==='chu'?'Activité générée par l\'échographie':'CA induit par l\'activité d\'échographie',
       (N*w(i=>i.tarif)*(A==='tel'?s.partIntel/100:1)+P.n*s.surNuit+P.w*s.surWE*s.partF/100+(A==='pri'?N*s.depass:0))*s.billable/100]);
   }
   if(A==='per'||A==='chu'){L.push(['Déplacements de patients évités',Math.min(s.nTransf*k,N)*s.cTransf],['Hospitalisations évitées',Math.min(s.nHosp*k,N)*s.cHosp],['Attente aux urgences évitée',s.nWait*k*s.cWait],['Complications évitées',Math.min(s.nCompl*k,N)*s.cCompl]);}
@@ -325,7 +327,7 @@ function calc(s,k){
   const inv=(R!=='exp'?s.nPatient*s.priceP:0)+(R!=='site'?s.nExpert*(s.priceE+(s.cockpit?s.priceC:0)):0),res=L.reduce((a,l)=>a+l[1],0),own=-L.reduce((a,l)=>a+Math.min(0,l[1]),0);
   const openH=s.nPatient*(s.hJour*days.j+s.hNuit*days.n+s.hWE*days.w),offOpen=openH?s.nPatient*(s.hNuit*days.n+s.hWE*days.w)/openH:0;
   const classic=openH*s.radRate*(1+s.maj/100*offOpen)+s.nPatient*s.echo+N*s.conso;
-  const caDir=L.filter(l=>/^CA induit par l'activité/.test(l[0])).reduce((a,l)=>a+l[1],0),caInd=ct*s.caCT+irm*s.caIRM;
+  const caDir=L.filter(l=>/^(CA induit par l'activité|Activité générée par)/.test(l[0])).reduce((a,l)=>a+l[1],0),caInd=ct*s.caCT+irm*s.caIRM;
   return {cash:res+inv/Math.max(s.years,1),caDir,caInd,inv,L,res,own,N,P,days,D,Dall,C,fill:C>0&&isFinite(C)?N/C:null,over:D-N,refused:Dall-D,m,accH,manipH,radH,ct,irm,lost,openH,classic};
 }
 
@@ -374,8 +376,12 @@ function renderDash(){
 function render(){
   renderDash();
   const c=calc(S),ok=c.res>=0;
-  $('b-res').textContent=keur(c.res);
-  $('b-pill').textContent=ok?'Rentable':'Déficitaire';$('b-pill').className='pill '+(ok?'ok':'ko');
+  const caMode=actor==='pri'||actor==='tel';
+  $('b-k1').textContent=caMode?'CA global généré':'Résultat annuel';
+  $('b-res').textContent=keur(caMode?c.caDir+c.caInd:c.res);
+  $('b-pill').hidden=caMode;$('b-pill').textContent=ok?'Rentable':'Déficitaire';$('b-pill').className='pill '+(ok?'ok':'ko');
+  $('b-indw').hidden=actor!=='pri';$('b-ind').textContent=keur(c.caInd);
+  $('b-pay').textContent=!c.inv?'–':c.cash>0?fmt(Math.ceil(c.inv/(c.cash/12)))+' mois':'Non amorti';
   $('b-n').textContent=fmt(c.N);
 
   let be=null;const pts=[];
@@ -401,13 +407,14 @@ function render(){
 
   const mx=Math.max(1,...c.L.map(l=>Math.abs(l[1])));
   const line=l=>`<span>${l[0]}</span><span class="t ${l[1]>=0?'r':'c'}" style="width:${Math.abs(l[1])/mx*100}%"></span><span class="num" style="text-align:right">${eur(l[1])}</span>`;
-  const rev=c.L.filter(l=>l[1]>=0),dep=c.L.filter(l=>l[1]<0),sum=a=>a.reduce((x,l)=>x+l[1],0);
-  const det=(lab,v)=>`<span style="color:var(--muted);padding-left:14px">${lab}</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(v)}</span>`;
+  const nz=c.L.filter(l=>Math.abs(l[1])>=0.5),rev=nz.filter(l=>l[1]>=0),dep=nz.filter(l=>l[1]<0),sum=a=>a.reduce((x,l)=>x+l[1],0);
+  const det=(lab,v)=>Math.abs(v)<0.5?'':`<span style="color:var(--muted);padding-left:14px">${lab}</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(v)}</span>`;
   const lineX=l=>line(l)+(/^CA induit par le recrutement/.test(l[0])?det('dont CA induit par l\'activité d\'IRM',c.irm*S.caIRM)+det('dont CA induit par l\'activité du scanner',c.ct*S.caCT):'');
   const sub=(lab,v)=>`<span class="sub-l">${lab}</span><span></span><span class="num sub-l" style="text-align:right">${eur(v)}</span><span class="gap"></span>`;
   $('pl').innerHTML=rev.map(lineX).join('')+sub('Total des revenus',sum(rev))+dep.map(line).join('')+sub('Total des dépenses',sum(dep))
    +`<span class="sep"></span><span class="tot">Résultat annuel</span><span></span><span class="num tot ${ok?'pos':'neg'}" style="text-align:right">${eur(c.res)}</span>`
-   +(S.role==='site'?'':`<span class="sep"></span><span class="tot">CA global généré</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span><span style="color:var(--muted);padding-left:12px">dont échographie (direct)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caDir)}</span><span style="color:var(--muted);padding-left:12px">dont autres modalités (indirect)</span><span></span><span class="num" style="text-align:right;color:var(--muted)">${eur(c.caInd)}</span>`);
+   +(S.role==='site'||c.caDir+c.caInd<0.5?'':`<span class="sep"></span><span class="tot">${actor==='chu'?'Activité globale générée':'CA global généré'}</span><span></span><span class="num tot" style="text-align:right">${eur(c.caDir+c.caInd)}</span>`
+     +(c.caInd>=0.5?det('dont échographie (direct)',c.caDir)+det('dont autres modalités (indirect)',c.caInd):''));
 
   if(S.role==='int'){const d=c.classic-c.own;
     $('cmp').innerHTML=`<span></span><span class="h">Télé-échographie</span><span class="h">Classique</span>
